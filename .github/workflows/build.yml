@@ -29,24 +29,35 @@ jobs:
           commit_user_email: github-actions[bot]@users.noreply.github.com
           commit_author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
 
-  build-docker-image:
+  build-static-site:
     needs: build-readme-file
     runs-on: ubuntu-latest
     steps:
       # Checkout, install tools..
       - uses: actions/checkout@v2
         with:
-          lfs: true
           fetch-depth: 0
-      # Use docker to build current directory ./Dockfile
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v1
+      
+      # Setup Python for MkDocs
+      - uses: actions/setup-python@v4
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push the Docker image
+          python-version: '3.11'
+      
+      # Install Python dependencies and build static site
+      - name: Install dependencies
         run: |
-          docker build . --tag ghcr.io/janeccp/how-to-cook:latest
-          docker push ghcr.io/janeccp/how-to-cook:latest
+          pip install -r requirements.txt
+      
+      - name: Build MkDocs site
+        run: |
+          mkdocs build
+      
+      # Deploy to Cloudflare Pages
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: how-to-cook
+          directory: site
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
